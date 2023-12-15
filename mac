@@ -3,4 +3,62 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-echo 'hello'
+############################################################################
+## Helper functions
+debug() {
+    LIGHT_GRAY='\033[0;37m'
+    RESET='\033[0m'
+    echo -e "${LIGHT_GRAY}$1${RESET}"
+}
+
+info() {
+    GREEN='\033[0;32m'
+    RESET='\033[0m'
+    echo -e "${GREEN}$1${RESET}"
+}
+
+warn() {
+    YELLOW='\033[1;33m'
+    RESET='\033[0m'
+    echo -e "${YELLOW}$1${RESET}"
+}
+
+error() {
+    RED='\033[0;31m'
+    RESET='\033[0m'
+    echo -e "${RED}$1${RESET}"
+}
+
+############################################################################
+# Main
+
+# Setup ssh key on this machine
+if [ -e ~/.ssh/id_ed25519.pub ]; then
+    debug "ed25519 ssh key exists, not generating one then."
+else
+    debug "ed25519 ssh key does not exist."
+    warn "Generating ssh key with no passphrase, that's how I roll"
+    ssh-keygen -t ed25519 -C "$(whoami)@$(hostname)" -N "" -f ~/.ssh/id_ed25519    
+fi
+
+# Copy key to clipboard
+cat ~/.ssh/id_ed25519.pub | pbcopy
+
+info "Browser will open to Github ssh keys management page"
+info "Copy the pubkey from your clipboard into a 'new' key"
+info "\nPress return to open Github"
+read -r   # This line will wait for the user to press Enter
+
+# Confirm ssh key is setup in Github
+open 'https://github.com/settings/keys'
+
+info "Press return once key is saved in Github"
+read -r   # This line will wait for the user to press Enter
+
+# Check if Github ssh auth works.  Expected exit code `1`
+ssh -T git@github.com
+
+if [ $? -ne 1 ]; then
+    error "Github ssh auth failed.  Troubleshoot and start over."
+    exit 1
+fi
